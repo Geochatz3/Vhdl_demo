@@ -1,0 +1,22 @@
+# Build artifacts
+*.o
+*.cf
+e~*
+tb_*
+work-obj*.cf
+
+# Waveform files
+*.ghw
+*.vcd
+*.fst
+*.vcd.gz
+
+# Build directory (optional - uncomment if you want to ignore build artifacts)
+# build/
+# waveforms/
+
+# Editor files
+*.swp
+*~
+.DS_Store
+
