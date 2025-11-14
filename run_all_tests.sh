@@ -2,7 +2,8 @@
 # Automated test script for VHDL GHDL Demo Project
 # Runs all testbenches and verifies golden reference
 
-set -e  # Exit on error
+# Don't use set -e here, we want to collect all test results
+# set -e  # Exit on error
 
 echo "=========================================="
 echo "Automated Test Suite"
