@@ -10,6 +10,9 @@ echo "Automated Test Suite"
 echo "=========================================="
 echo ""
 
+# Initialize test output log
+> /tmp/test_output.log
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -35,13 +38,14 @@ run_test() {
     
     # Check if test passed (look for PASS message)
     # GHDL exits with 1 even on success (uses assertion failure to stop)
-    if grep -qi "TESTBENCH PASSED\|All.*test.*passed\|Simulation completed successfully" /tmp/test_output.log 2>/dev/null; then
+    local test_log="/tmp/test_${test_name// /_}.log"
+    if grep -qi "TESTBENCH PASSED\|All.*test.*passed\|Simulation completed successfully" "$test_log" 2>/dev/null; then
         echo -e "${GREEN}PASS${NC}"
         TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
-    elif grep -qi "TESTBENCH FAILED\|test.*failed" /tmp/test_output.log 2>/dev/null; then
+    elif grep -qi "TESTBENCH FAILED\|test.*failed" "$test_log" 2>/dev/null; then
         # Check if it's a real failure or just the stop mechanism
-        if grep -qi "TESTBENCH PASSED" /tmp/test_output.log 2>/dev/null; then
+        if grep -qi "TESTBENCH PASSED" "$test_log" 2>/dev/null; then
             # It says PASSED, so it's just the assertion to stop
             echo -e "${GREEN}PASS${NC}"
             TESTS_PASSED=$((TESTS_PASSED + 1))
@@ -49,9 +53,9 @@ run_test() {
         else
             echo -e "${RED}FAIL${NC}"
             # Show error details for debugging
-            if grep -qi "error\|cannot open\|file.*not found" /tmp/test_output.log 2>/dev/null; then
+            if grep -qi "error\|cannot open\|file.*not found" "$test_log" 2>/dev/null; then
                 echo "  Error details:"
-                grep -i "error\|cannot\|file.*not found" /tmp/test_output.log | head -3 | sed 's/^/    /'
+                grep -i "error\|cannot\|file.*not found" "$test_log" | head -3 | sed 's/^/    /'
             fi
             TESTS_FAILED=$((TESTS_FAILED + 1))
             FAILED_TESTS+=("$test_name")
@@ -59,21 +63,21 @@ run_test() {
         fi
     else
         # For older testbenches without the new messaging, check for error patterns
-        if grep -qi "error\|failed" /tmp/test_output.log 2>/dev/null && ! grep -qi "assertion failed.*successfully\|simulation completed\|TESTBENCH PASSED" /tmp/test_output.log 2>/dev/null; then
+        if grep -qi "error\|failed" "$test_log" 2>/dev/null && ! grep -qi "assertion failed.*successfully\|simulation completed\|TESTBENCH PASSED" "$test_log" 2>/dev/null; then
             echo -e "${RED}FAIL${NC}"
             # Show error details
-            if grep -qi "error\|cannot open\|file.*not found" /tmp/test_output.log 2>/dev/null; then
+            if grep -qi "error\|cannot open\|file.*not found" "$test_log" 2>/dev/null; then
                 echo "  Error details:"
-                grep -i "error\|cannot\|file.*not found" /tmp/test_output.log | head -3 | sed 's/^/    /'
+                grep -i "error\|cannot\|file.*not found" "$test_log" | head -3 | sed 's/^/    /'
             fi
             TESTS_FAILED=$((TESTS_FAILED + 1))
             FAILED_TESTS+=("$test_name")
             return 1
         else
             # Check for file errors specifically
-            if grep -qi "cannot open.*test_inputs\|file.*not found\|name_error" /tmp/test_output.log 2>/dev/null; then
+            if grep -qi "cannot open.*test_inputs\|file.*not found\|name_error" "$test_log" 2>/dev/null; then
                 echo -e "${RED}FAIL${NC} (file error)"
-                grep -i "cannot open\|file.*not found\|name_error" /tmp/test_output.log | head -2 | sed 's/^/    /'
+                grep -i "cannot open\|file.*not found\|name_error" "$test_log" | head -2 | sed 's/^/    /'
                 TESTS_FAILED=$((TESTS_FAILED + 1))
                 FAILED_TESTS+=("$test_name")
                 return 1
