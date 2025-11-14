@@ -22,6 +22,7 @@ vhdl_ghdl_demo/
 │   └── tb_axi4_lite_master.vhd     # Testbench for AXI4-Lite master
 ├── build/                    # Build artifacts (auto-generated)
 ├── waveforms/                # Waveform files (auto-generated)
+├── output/                   # Test results output files (auto-generated)
 ├── build.sh                  # Build script
 ├── ghdl-docker.sh            # GHDL Docker wrapper
 ├── .gitignore                # Git ignore file
@@ -182,6 +183,20 @@ The testbench includes comprehensive tests:
 - Byte-level writes
 - Write-Read-Write sequences
 - Error checking
+
+**Test Results File Output:**
+The testbench automatically writes detailed test results to text files in the `output/` directory. Each testbench creates its own output file:
+- `output/tb_axi4_lite_master_results.txt` - AXI4-Lite master test results
+- Other testbenches will create similarly named files
+
+The output files contain:
+- Test number and description
+- Addresses and data values (in hexadecimal)
+- Expected vs. actual read values
+- Pass/Fail status for each test
+- Test summary with total test count
+
+After running the simulation, check the `output/` directory for detailed logs of all test operations.
 
 ### Xilinx Compatibility
 

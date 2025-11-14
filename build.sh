@@ -4,7 +4,7 @@
 # Uses GHDL via Docker wrapper
 
 # Create directories if they don't exist
-mkdir -p build waveforms
+mkdir -p build waveforms output
 
 echo "Cleaning previous build files..."
 rm -f *.o *.cf e~* tb_*
@@ -26,11 +26,13 @@ echo "Compiling AXI4-Lite modules..."
 echo "Compiling testbenches..."
 ./ghdl-docker.sh -a tb/tb_and_gate.vhd
 ./ghdl-docker.sh -a tb/tb_combinational_logic.vhd
+./ghdl-docker.sh -a tb/tb_combinational_logic_file.vhd
 ./ghdl-docker.sh -a tb/tb_axi4_lite_master.vhd
 
 echo "Elaborating testbenches..."
 ./ghdl-docker.sh -e tb_and_gate
 ./ghdl-docker.sh -e tb_combinational_logic
+./ghdl-docker.sh -e tb_combinational_logic_file
 ./ghdl-docker.sh -e tb_axi4_lite_master
 
 echo ""
@@ -39,5 +41,6 @@ echo ""
 echo "To run testbenches:"
 echo "  ./ghdl-docker.sh -r tb_and_gate --wave=waveforms/wave_and.ghw"
 echo "  ./ghdl-docker.sh -r tb_combinational_logic --wave=waveforms/wave.ghw"
+echo "  ./ghdl-docker.sh -r tb_combinational_logic_file --wave=waveforms/wave_file.ghw"
 echo "  ./ghdl-docker.sh -r tb_axi4_lite_master --wave=waveforms/wave_axi.ghw"
 

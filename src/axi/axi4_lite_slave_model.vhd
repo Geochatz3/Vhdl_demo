@@ -59,13 +59,17 @@ architecture rtl of axi4_lite_slave_model is
   -- Write Address Channel
   signal aw_ready : std_logic := '0';
   signal aw_addr_reg : std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
+  signal write_in_progress : std_logic := '0';
   
   -- Write Data Channel
   signal w_ready : std_logic := '0';
+  signal w_addr_reg : std_logic_vector(C_S_AXI_ADDR_WIDTH-1 downto 0);
   
   -- Write Response Channel
   signal b_valid : std_logic := '0';
   signal b_resp  : std_logic_vector(1 downto 0) := "00";
+  signal aw_handshake_done : std_logic := '0';
+  signal w_handshake_done : std_logic := '0';
   
   -- Read Address Channel
   signal ar_ready : std_logic := '0';
@@ -94,12 +98,19 @@ begin
       if S_AXI_ARESETN = '0' then
         aw_ready <= '0';
         aw_addr_reg <= (others => '0');
+        write_in_progress <= '0';
       else
-        if S_AXI_AWVALID = '1' and aw_ready = '0' then
+        if S_AXI_AWVALID = '1' and aw_ready = '0' and write_in_progress = '0' then
           aw_addr_reg <= S_AXI_AWADDR;
           aw_ready <= '1';
-        elsif aw_ready = '1' then
+          write_in_progress <= '1';
+        elsif aw_ready = '1' and S_AXI_AWVALID = '0' then
           aw_ready <= '0';
+        end if;
+        -- Clear address register after write response is accepted
+        if S_AXI_BREADY = '1' and b_valid = '1' then
+          aw_addr_reg <= (others => '0');
+          write_in_progress <= '0';
         end if;
       end if;
     end if;
@@ -115,9 +126,14 @@ begin
     if rising_edge(S_AXI_ACLK) then
       if S_AXI_ARESETN = '0' then
         w_ready <= '0';
+        w_addr_reg <= (others => '0');
       else
         if S_AXI_WVALID = '1' and w_ready = '0' then
-          -- Calculate memory index
+          -- Capture address from AW channel when write data arrives
+          w_addr_reg <= aw_addr_reg;
+          
+          -- Calculate memory index using aw_addr_reg (should be stable during write_in_progress)
+          -- Use aw_addr_reg directly since signal assignment to w_addr_reg takes effect next cycle
           mem_index := addr_to_index(aw_addr_reg);
           
           -- Check address range
@@ -131,7 +147,7 @@ begin
           end if;
           
           w_ready <= '1';
-        elsif w_ready = '1' then
+        elsif w_ready = '1' and S_AXI_WVALID = '0' then
           w_ready <= '0';
         end if;
       end if;
@@ -147,8 +163,21 @@ begin
       if S_AXI_ARESETN = '0' then
         b_valid <= '0';
         b_resp <= "00";
+        aw_handshake_done <= '0';
+        w_handshake_done <= '0';
       else
-        if aw_ready = '1' and w_ready = '1' and b_valid = '0' then
+        -- Track when AW handshake completes
+        if S_AXI_AWVALID = '1' and aw_ready = '1' then
+          aw_handshake_done <= '1';
+        end if;
+        
+        -- Track when W handshake completes
+        if S_AXI_WVALID = '1' and w_ready = '1' then
+          w_handshake_done <= '1';
+        end if;
+        
+        -- Generate write response when both handshakes are done
+        if aw_handshake_done = '1' and w_handshake_done = '1' and b_valid = '0' then
           -- Check if address is valid
           if addr_to_index(aw_addr_reg) >= 0 and addr_to_index(aw_addr_reg) < MEMORY_SIZE then
             b_resp <= "00";  -- OKAY
@@ -158,6 +187,10 @@ begin
           b_valid <= '1';
         elsif S_AXI_BREADY = '1' and b_valid = '1' then
           b_valid <= '0';
+          -- Clear handshake flags after response is accepted
+          -- Address clearing is handled in aw_channel process to avoid multi-driver
+          aw_handshake_done <= '0';
+          w_handshake_done <= '0';
         end if;
       end if;
     end if;
@@ -177,7 +210,7 @@ begin
         if S_AXI_ARVALID = '1' and ar_ready = '0' then
           ar_addr_reg <= S_AXI_ARADDR;
           ar_ready <= '1';
-        elsif ar_ready = '1' then
+        elsif ar_ready = '1' and S_AXI_ARVALID = '0' then
           ar_ready <= '0';
         end if;
       end if;

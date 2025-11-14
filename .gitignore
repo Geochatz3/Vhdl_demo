@@ -11,6 +11,11 @@ work-obj*.cf
 *.fst
 *.vcd.gz
 
+# Test output files
+test_results.txt
+output/*.txt
+!output/.gitkeep
+
 # Build directory (optional - uncomment if you want to ignore build artifacts)
 # build/
 # waveforms/
