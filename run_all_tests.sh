@@ -149,9 +149,14 @@ if [ $TESTS_FAILED -gt 0 ]; then
     done
     echo ""
     echo -e "${RED}Some tests failed!${NC}"
+    # Write to log file for GitHub Actions
+    echo "TEST_RESULT=FAILED" > /tmp/test_status.log
     exit 1
 else
     echo -e "${GREEN}All tests passed!${NC}"
+    # Write to log file for GitHub Actions
+    echo "TEST_RESULT=PASSED" > /tmp/test_status.log
+    echo "All tests passed!" >> /tmp/test_output.log
     exit 0
 fi
 
