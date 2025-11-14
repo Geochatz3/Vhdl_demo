@@ -33,8 +33,10 @@ jobs:
       run: |
         # The ghdl-docker.sh script uses Docker to run GHDL
         # Docker is available in GitHub Actions by default
+        echo "Building VHDL project..."
         ./ghdl-docker.sh --version || echo "GHDL Docker wrapper ready"
         ./build.sh
+        echo "Build completed successfully!"
         
     - name: Run test suite
       run: |
