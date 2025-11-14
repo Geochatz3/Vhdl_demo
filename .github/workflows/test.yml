@@ -1,0 +1,66 @@
+name: VHDL Test Suite
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:  # Allows manual triggering
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.x'
+        
+    - name: Make scripts executable
+      run: |
+        chmod +x *.sh
+        chmod +x scripts/*.py
+        
+    - name: Verify golden reference
+      run: |
+        python3 scripts/verify_golden_reference.py test_inputs.txt
+        
+    - name: Build project with GHDL Docker
+      run: |
+        # The ghdl-docker.sh script uses Docker to run GHDL
+        # Docker is available in GitHub Actions by default
+        ./ghdl-docker.sh --version || echo "GHDL Docker wrapper ready"
+        ./build.sh
+        
+    - name: Run test suite
+      run: |
+        ./run_all_tests.sh
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          output/*.txt
+          output/*.csv
+        retention-days: 7
+        
+    - name: Test Summary
+      if: always()
+      run: |
+        echo "## 🧪 Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f /tmp/test_output.log ]; then
+          echo "### Last Test Output" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -30 /tmp/test_output.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Test Artifacts" >> $GITHUB_STEP_SUMMARY
+        echo "Test result files are available in the artifacts section." >> $GITHUB_STEP_SUMMARY
