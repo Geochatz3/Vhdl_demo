@@ -45,6 +45,13 @@ jobs:
         ./run_all_tests.sh
         TEST_EXIT_CODE=$?
         
+        # Show test output for debugging
+        echo "=== Test Output Summary ==="
+        if [ -f /tmp/test_output.log ]; then
+          echo "Last 50 lines of test output:"
+          tail -50 /tmp/test_output.log
+        fi
+        
         # Check if tests actually passed by looking at the output
         if grep -qi "All tests passed" /tmp/test_output.log 2>/dev/null || [ -f /tmp/test_status.log ] && grep -q "PASSED" /tmp/test_status.log; then
           echo "✅ All tests passed!"
@@ -56,6 +63,11 @@ jobs:
           exit 0
         else
           echo "❌ Some tests failed"
+          echo "Checking for specific errors..."
+          if grep -qi "cannot open\|file.*not found\|name_error" /tmp/test_output.log 2>/dev/null; then
+            echo "File access errors detected:"
+            grep -i "cannot open\|file.*not found\|name_error" /tmp/test_output.log | head -5
+          fi
           echo "test_status=failed" >> $GITHUB_OUTPUT
           exit 1
         fi
