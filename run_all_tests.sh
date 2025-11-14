@@ -29,11 +29,9 @@ run_test() {
     
     echo -n "Running $test_name... "
     
-    if eval "$command" > /tmp/test_output.log 2>&1; then
-        exit_code=$?
-    else
-        exit_code=$?
-    fi
+    # Run the command and capture output
+    eval "$command" > /tmp/test_output.log 2>&1
+    exit_code=$?
     
     # Check if test passed (look for PASS message)
     # GHDL exits with 1 even on success (uses assertion failure to stop)
@@ -41,7 +39,7 @@ run_test() {
         echo -e "${GREEN}PASS${NC}"
         TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
-    elif grep -qi "TESTBENCH FAILED\|test.*failed\|assertion failed" /tmp/test_output.log 2>/dev/null; then
+    elif grep -qi "TESTBENCH FAILED\|test.*failed" /tmp/test_output.log 2>/dev/null; then
         # Check if it's a real failure or just the stop mechanism
         if grep -qi "TESTBENCH PASSED" /tmp/test_output.log 2>/dev/null; then
             # It says PASSED, so it's just the assertion to stop
@@ -50,22 +48,41 @@ run_test() {
             return 0
         else
             echo -e "${RED}FAIL${NC}"
+            # Show error details for debugging
+            if grep -qi "error\|cannot open\|file.*not found" /tmp/test_output.log 2>/dev/null; then
+                echo "  Error details:"
+                grep -i "error\|cannot\|file.*not found" /tmp/test_output.log | head -3 | sed 's/^/    /'
+            fi
             TESTS_FAILED=$((TESTS_FAILED + 1))
             FAILED_TESTS+=("$test_name")
             return 1
         fi
     else
         # For older testbenches without the new messaging, check for error patterns
-        if grep -qi "error\|failed" /tmp/test_output.log 2>/dev/null && ! grep -qi "assertion failed.*successfully\|simulation completed" /tmp/test_output.log 2>/dev/null; then
+        if grep -qi "error\|failed" /tmp/test_output.log 2>/dev/null && ! grep -qi "assertion failed.*successfully\|simulation completed\|TESTBENCH PASSED" /tmp/test_output.log 2>/dev/null; then
             echo -e "${RED}FAIL${NC}"
+            # Show error details
+            if grep -qi "error\|cannot open\|file.*not found" /tmp/test_output.log 2>/dev/null; then
+                echo "  Error details:"
+                grep -i "error\|cannot\|file.*not found" /tmp/test_output.log | head -3 | sed 's/^/    /'
+            fi
             TESTS_FAILED=$((TESTS_FAILED + 1))
             FAILED_TESTS+=("$test_name")
             return 1
         else
-            # Assume pass if no clear failure
-            echo -e "${GREEN}PASS${NC}"
-            TESTS_PASSED=$((TESTS_PASSED + 1))
-            return 0
+            # Check for file errors specifically
+            if grep -qi "cannot open.*test_inputs\|file.*not found\|name_error" /tmp/test_output.log 2>/dev/null; then
+                echo -e "${RED}FAIL${NC} (file error)"
+                grep -i "cannot open\|file.*not found\|name_error" /tmp/test_output.log | head -2 | sed 's/^/    /'
+                TESTS_FAILED=$((TESTS_FAILED + 1))
+                FAILED_TESTS+=("$test_name")
+                return 1
+            else
+                # Assume pass if no clear failure
+                echo -e "${GREEN}PASS${NC}"
+                TESTS_PASSED=$((TESTS_PASSED + 1))
+                return 0
+            fi
         fi
     fi
 }
@@ -79,6 +96,21 @@ else
     cat /tmp/build.log
     exit 1
 fi
+echo ""
+
+# Step 1.5: Ensure test input files exist
+echo "Step 1.5: Preparing test files..."
+if [ ! -f test_inputs.txt ]; then
+    echo "Generating test_inputs.txt..."
+    python3 scripts/generate_golden_reference.py test_inputs.txt
+fi
+if [ ! -f test_inputs_custom.txt ]; then
+    echo "Generating test_inputs_custom.txt..."
+    python3 scripts/generate_golden_reference.py test_inputs_custom.txt
+fi
+# Ensure output directory exists
+mkdir -p output
+echo -e "${GREEN}Test files ready${NC}"
 echo ""
 
 # Step 2: Verify golden reference
